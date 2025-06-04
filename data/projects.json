@@ -1,0 +1,14 @@
+{
+   "list": [
+      {
+         "name":"minesweeper-rs",
+         "url":"https://itch.io/mutkach/minesweeper-rs",
+         "desc":"Game written in Rust, using Macroquad and compiled into WASM"
+      },
+      {
+         "name":"Type",
+         "url":"http://fontawesome.io/",
+         "desc":"The iconic font and CSS toolkit"
+      }
+   ]
+}

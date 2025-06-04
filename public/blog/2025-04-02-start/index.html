@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LLM surgery for debugging [Part 1] | Torus Blog</title>
+<meta name="title" content="LLM surgery for debugging [Part 1]" />
+<meta name="description" content="Problem: You downloaded and tested a new LLM model from HF. You test it - everything works great for the first couple of examples. Now, you want to deploy it to a production-ready framework (triton, tfserving, torchserve, vllm, trt-llm, etc.), and the end-to-end test result seems to be different or even plain out wrong.
+I will show you a specific method that I&rsquo;ve been using for years for debugging neural networks of different kinds. Specifically, it helps a lot while converting models between different formats and runtimes. Let&rsquo;s take, for example, &#43;Llama-3.2-11B-Vision-Instruct&#43;. We&rsquo;ll pick TensorRT-LLM as our &ldquo;production&rdquo; backend that is expected to serve the requests, while testing is done using good ol&rsquo; &#43;Huggingface&#43;. It was all good until I reached a problem that virtually broke the of out business case: for some images, llama would incorrectly parse some of the parts of the document. Neither vLLM nor &#43;Huggingface&#43; had that problem." />
+<meta name="keywords" content="" />
+
+
+<meta property="og:url" content="http://localhost:1313/blog/2025-04-02-start/">
+  <meta property="og:site_name" content="Torus Blog">
+  <meta property="og:title" content="LLM surgery for debugging [Part 1]">
+  <meta property="og:description" content="Problem: You downloaded and tested a new LLM model from HF. You test it - everything works great for the first couple of examples. Now, you want to deploy it to a production-ready framework (triton, tfserving, torchserve, vllm, trt-llm, etc.), and the end-to-end test result seems to be different or even plain out wrong.
+I will show you a specific method that I’ve been using for years for debugging neural networks of different kinds. Specifically, it helps a lot while converting models between different formats and runtimes. Let’s take, for example, &#43;Llama-3.2-11B-Vision-Instruct&#43;. We’ll pick TensorRT-LLM as our “production” backend that is expected to serve the requests, while testing is done using good ol’ &#43;Huggingface&#43;. It was all good until I reached a problem that virtually broke the of out business case: for some images, llama would incorrectly parse some of the parts of the document. Neither vLLM nor &#43;Huggingface&#43; had that problem.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="blog">
+    <meta property="article:published_time" content="2025-04-02T00:00:00+00:00">
+    <meta property="article:modified_time" content="2025-04-02T00:00:00+00:00">
+
+
+
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="LLM surgery for debugging [Part 1]">
+  <meta name="twitter:description" content="Problem: You downloaded and tested a new LLM model from HF. You test it - everything works great for the first couple of examples. Now, you want to deploy it to a production-ready framework (triton, tfserving, torchserve, vllm, trt-llm, etc.), and the end-to-end test result seems to be different or even plain out wrong.
+I will show you a specific method that I’ve been using for years for debugging neural networks of different kinds. Specifically, it helps a lot while converting models between different formats and runtimes. Let’s take, for example, &#43;Llama-3.2-11B-Vision-Instruct&#43;. We’ll pick TensorRT-LLM as our “production” backend that is expected to serve the requests, while testing is done using good ol’ &#43;Huggingface&#43;. It was all good until I reached a problem that virtually broke the of out business case: for some images, llama would incorrectly parse some of the parts of the document. Neither vLLM nor &#43;Huggingface&#43; had that problem.">
+
+
+
+
+  <meta itemprop="name" content="LLM surgery for debugging [Part 1]">
+  <meta itemprop="description" content="Problem: You downloaded and tested a new LLM model from HF. You test it - everything works great for the first couple of examples. Now, you want to deploy it to a production-ready framework (triton, tfserving, torchserve, vllm, trt-llm, etc.), and the end-to-end test result seems to be different or even plain out wrong.
+I will show you a specific method that I’ve been using for years for debugging neural networks of different kinds. Specifically, it helps a lot while converting models between different formats and runtimes. Let’s take, for example, &#43;Llama-3.2-11B-Vision-Instruct&#43;. We’ll pick TensorRT-LLM as our “production” backend that is expected to serve the requests, while testing is done using good ol’ &#43;Huggingface&#43;. It was all good until I reached a problem that virtually broke the of out business case: for some images, llama would incorrectly parse some of the parts of the document. Neither vLLM nor &#43;Huggingface&#43; had that problem.">
+  <meta itemprop="datePublished" content="2025-04-02T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2025-04-02T00:00:00+00:00">
+  <meta itemprop="wordCount" content="1775">
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  <style>
+  :root {
+    --width: 720px;
+    --font-main: Verdana, sans-serif;
+    --font-secondary: Verdana, sans-serif;
+    --font-scale: 1em;
+    --background-color: #fff;
+    --heading-color: #222;
+    --text-color: #444;
+    --link-color: #3273dc;
+    --visited-color: #8b6fcb;
+    --code-background-color: #f2f2f2;
+    --code-color: #222;
+    --blockquote-color: #222;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background-color: #01242e;
+      --heading-color: #eee;
+      --text-color: #ddd;
+      --link-color: #8cc2dd;
+      --visited-color: #8b6fcb;
+      --code-background-color: #000;
+      --code-color: #ddd;
+      --blockquote-color: #ccc;
+    }
+  }
+
+  body {
+    font-family: var(--font-secondary);
+    font-size: var(--font-scale);
+    margin: auto;
+    padding: 20px;
+    max-width: var(--width);
+    text-align: left;
+    background-color: var(--background-color);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.5;
+    color: var(--text-color);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-main);
+    color: var(--heading-color);
+  }
+
+  a {
+    color: var(--link-color);
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  nav a {
+    margin-right: 8px;
+  }
+
+  strong,
+  b {
+    color: var(--heading-color);
+  }
+
+  button {
+    margin: 0;
+    cursor: pointer;
+  }
+
+  time {
+    font-family: monospace;
+    font-style: normal;
+    font-size: 15px;
+  }
+
+  main {
+    line-height: 1.6;
+  }
+
+  table {
+    width: 100%;
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px dashed;
+  }
+
+  img {
+    max-width: 100%;
+  }
+
+  code {
+    font-family: monospace;
+    padding: 2px;
+    background-color: var(--code-background-color);
+    color: var(--code-color);
+    border-radius: 3px;
+  }
+
+  blockquote {
+    border-left: 1px solid #999;
+    color: var(--code-color);
+    padding-left: 20px;
+    font-style: italic;
+  }
+
+  footer {
+    padding: 25px 0;
+    text-align: center;
+  }
+
+  .title:hover {
+    text-decoration: none;
+  }
+
+  .title h1 {
+    font-size: 1.5em;
+  }
+
+  .inline {
+    width: auto !important;
+  }
+
+  .highlight,
+  .code {
+    padding: 1px 15px;
+    background-color: var(--code-background-color);
+    color: var(--code-color);
+    border-radius: 3px;
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+    overflow-x: auto;
+  }
+
+   
+  ul.blog-posts {
+    list-style-type: none;
+    padding: unset;
+  }
+
+  ul.blog-posts li {
+    display: flex;
+  }
+
+  ul.blog-posts li span {
+    flex: 0 0 130px;
+  }
+
+  ul.blog-posts li a:visited {
+    color: var(--visited-color);
+  }
+
+</style>
+
+</head>
+
+<body>
+  <header><a href="/" class="title">
+  <h2>Torus Blog</h2>
+</a>
+<nav>
+</nav>
+</header>
+  <main>
+
+<h1>LLM surgery for debugging [Part 1]</h1>
+<p>
+  <i>
+    <time datetime='2025-04-02'>
+      02 Apr, 2025
+    </time>
+  </i>
+</p>
+
+<content>
+  <p><em>Problem: You downloaded and tested a new LLM model from HF. You test it - everything works great for the first couple of examples. Now, you want to deploy it to a production-ready framework (triton, tfserving, torchserve, vllm, trt-llm, etc.), and the end-to-end test result seems to be different or even plain out wrong.</em></p>
+<p>I will show you a specific method that I&rsquo;ve been using for years for debugging neural networks of different kinds. Specifically, it helps a lot while converting models between different formats and runtimes. Let&rsquo;s take, for example, <code>+Llama-3.2-11B-Vision-Instruct+</code>. We&rsquo;ll pick TensorRT-LLM as our &ldquo;<code>production</code>&rdquo; backend that is expected to serve the requests, while testing is done using good ol&rsquo; <code>+Huggingface+</code>. It was all good until I reached a problem that virtually broke the of out business case: for some images, llama would incorrectly parse some of the parts of the document. Neither vLLM nor <code>+Huggingface+</code> had that problem.</p>
+<p>Let&rsquo;s say it was a web page snapshot with a VQA-like question about a specific number located on the page. Two frameworks gave similar answers, notably regarding the answer to the question. HF - does, <code>+TRT-LLM+</code> - does not.</p>
+<p><img src="../images/image20.jpg" alt="example that cannot be parsed correctly"></p>
+<p>The prompt that was given to it was asking for the correct date of something that happened and was mentioned in the page, and the correct the answer should have been something like</p>
+<ul>
+<li><strong>Huggingface</strong>: <code>&quot;The date shown in the screenshot is 26.11.2024.&quot;</code></li>
+<li><strong>TRT-LLM:</strong> <code>&quot;The date shown in the screenshot is November 1, 2023.&quot;</code></li>
+</ul>
+<p>For the intended use case, it&rsquo;s not enough to merely respond in a grammatically and semantically correct way; I need to get the precise answer to my question. Now that we see the differing outputs, we want to investigate the reasons. One of the possibilities here is to localize the discrepancy first. Of course, two LLM frameworks cannot be incorrect <em>everywhere</em>. For that, I would recommend  - let&rsquo;s call it - <code>+comparative LLM surgery+</code>. It is a universal method for all kinds of neural networks - not just LLMs. In short, it means we extract meaningful parts of intermediate layers (one - from a healthy specimen and the faulty one), and then compare them one to one.</p>
+<p>The plan for diagnosing the LLM is as follows:</p>
+<ol>
+<li>First, we check that the tokenizer works the same way for both cases.</li>
+<li>Fix manually any intermediate layer. I.e., fixing manually the visual
+encoder part, for example. Literally extracting the layer outputs from
+Torch and injecting it in the TRT-LLM pipeline.</li>
+<li>Register debug outputs within TensorRT</li>
+<li>Create debugging wrapper for HF transformer blocks</li>
+<li>Write debugging outputs to .pt files | Write HF outputs to wherever you
+want them</li>
+<li>Compare shapes, compare distribution, and/or compute <code>+corrcoef+</code></li>
+<li>Compare outputs: plot the hidden state</li>
+<li>Compare outputs&rsquo; difference between layers (in case some of them are
+skipped)</li>
+<li>After assessing the results, pronounce the diagnosis</li>
+</ol>
+<p>Today we will examine the troublesome difference of outputs between those of TRT-LLM (former FasterTransformer) and Torch (and Huggingface) of a relatively new multi-modal Llama - namely <code>meta-llama/Llama-3.2-11B-Vision-Instruct</code></p>
+<h1 id="preparing-or-preparating-the-trt-llm">Preparing (or <em>preparating</em>) the TRT-LLM</h1>
+<p><code>Llama-11B-Vision</code> consists of 39 transformer blocks. We want to mark the output of each transformer block and save them somewhere. TensorRT and the TRT-LLM specifically - are very optimization intensive it is done by <em>registering</em> the outputs first. Let&rsquo;s do just that. Let&rsquo;s follow this <a href="https://nvidia.github.io/TensorRT-LLM/reference/troubleshooting.html#debug-on-e2e-models">guide</a></p>
+<p>It&rsquo;s essential to build the model in debug mode such that it does not optimize out your outputs:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>trtllm-build
+</span></span><span style="display:flex;"><span> --checkpoint_dir <span style="color:#e6db74">${</span>UNIFIED_CKPT_PATH<span style="color:#e6db74">}</span> 
+</span></span><span style="display:flex;"><span> --output_dir <span style="color:#e6db74">${</span>ENGINE_PATH<span style="color:#e6db74">}</span> 
+</span></span><span style="display:flex;"><span> --max_batch_size <span style="color:#ae81ff">1</span> 
+</span></span><span style="display:flex;"><span> --enable_debug_output  <span style="color:#75715e"># important part</span>
+</span></span><span style="display:flex;"><span> --max_seq_len <span style="color:#ae81ff">2048</span> 
+</span></span><span style="display:flex;"><span> --max_encoder_input_len <span style="color:#ae81ff">6404</span> 
+</span></span></code></pre></div><p>I&rsquo;ll cite the <a href="https://nvidia.github.io/TensorRT-LLM/reference/troubleshooting.html#debug-on-e2e-models">manual</a> here:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>    hidden_states <span style="color:#f92672">=</span> residual <span style="color:#f92672">+</span> attention_output<span style="color:#f92672">.</span>data
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    residual <span style="color:#f92672">=</span> hidden_states
+</span></span><span style="display:flex;"><span>    hidden_states <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>post_layernorm(hidden_states)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    hidden_states <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>mlp(hidden_states)
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># Register as model output</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># ------------------------------------------------------</span>
+</span></span><span style="display:flex;"><span>    self<span style="color:#f92672">.</span>register_network_output(<span style="color:#e6db74">&#39;mlp_output&#39;</span>, hidden_states)
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># ------------------------------------------------------</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    hidden_states <span style="color:#f92672">=</span> residual <span style="color:#f92672">+</span> hidden_states
+</span></span></code></pre></div><p>What we need to do first is find <code>forward()</code> in the <code>MLLaMAModel class</code> (located in <a href="https://github.com/NVIDIA/TensorRT-LLM/blob/main/tensorrt_llm/models/mllama/model.py#L684"><code>models/mllama/model.py</code></a>) and register the output just after the transformer block - this will get us 39 debug outputs -  one for each layer - which we would be able inspect at runtime later:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># somewhere in the forward() function</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i, (decoder_layer, past) <span style="color:#f92672">in</span> enumerate(
+</span></span><span style="display:flex;"><span>    zip(self<span style="color:#f92672">.</span>layers, kv_cache_params<span style="color:#f92672">.</span>past_key_value)):    
+</span></span><span style="display:flex;"><span>    lora_layer_params <span style="color:#f92672">=</span> <span style="color:#66d9ef">None</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> lora_params <span style="color:#f92672">is</span> <span style="color:#f92672">not</span> <span style="color:#66d9ef">None</span> <span style="color:#f92672">and</span> lora_params<span style="color:#f92672">.</span>lora_ranks <span style="color:#f92672">is</span> <span style="color:#f92672">not</span> <span style="color:#66d9ef">None</span>:
+</span></span><span style="display:flex;"><span>        lora_layer_params <span style="color:#f92672">=</span> lora_params<span style="color:#f92672">.</span>get_layer_params(i)
+</span></span><span style="display:flex;"><span>    hidden_states <span style="color:#f92672">=</span> decoder_layer(
+</span></span><span style="display:flex;"><span>        hidden_states,
+</span></span><span style="display:flex;"><span>        encoder_output<span style="color:#f92672">=</span>encoder_output,
+</span></span><span style="display:flex;"><span>        attention_mask_params<span style="color:#f92672">=</span>attention_mask_params,
+</span></span><span style="display:flex;"><span>        use_cache<span style="color:#f92672">=</span>use_cache,
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">...</span> <span style="color:#75715e"># full parameter list is omitted</span>
+</span></span><span style="display:flex;"><span>    )
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># here goes the important part</span>
+</span></span><span style="display:flex;"><span>    self<span style="color:#f92672">.</span>register_network_output(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;triton_debug_</span><span style="color:#e6db74">{</span>i<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>, hidden_states[<span style="color:#ae81ff">0</span>])
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># notice that hidden_states[1] is kv-cache. We don&#39;t need it for now</span>
+</span></span></code></pre></div><h1 id="preparing-the-torch-model">Preparing the Torch model</h1>
+<p>That is the easier part. I&rsquo;ll show you how to instrument or hijack the
+forward method of the model. We will create a separate <code>+util.py+</code> containing a <code>+torch.nn.Module+</code> Wrapper class. In order to produce the corresponding forward wrapper, we need to replicate the original argument list. By the way, one pretty cool tool may come in handy when observing complicated <code>+forward+</code>’s. It gives us the full signature with type hints!</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> inspect
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>sig<span style="color:#f92672">=</span>inspect<span style="color:#f92672">.</span>signature(model<span style="color:#f92672">.</span>language_model<span style="color:#f92672">.</span>forward)
+</span></span><span style="display:flex;"><span>print(sig)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Signature (input_ids: torch.LongTensor = None, attention_mask: Optional[torch.Tensor] = None, position_ids: Optional[torch.LongTensor] = None, cross_attention_states: Optional[torch.LongTensor] = None, cross_attention_mask: Optional[torch.LongTensor] = None, full_text_row_masked_out_mask: Optional[Tuple[torch.Tensor, torch.Tensor]] = None, ...
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">&#34;&#34;&#34;</span>
+</span></span></code></pre></div><p>This output is of particular benefit when the structure of the module is significantly complex or when looking at source code is not an option for some reason…</p>
+<p>So the wrapper of the transformer block looks something like this:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">DebugTransformerBlock</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;&#34;&#34;Wrapper class to add debugging to a transformer block&#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> __init__(self, block, layer_idx: int <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>):
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>block <span style="color:#f92672">=</span> block
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>layer_idx <span style="color:#f92672">=</span> layer_idx
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>debug_data <span style="color:#f92672">=</span> [] 
+</span></span><span style="display:flex;"><span>       
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e"># Replace forward method with your version</span>
+</span></span><span style="display:flex;"><span>        block<span style="color:#f92672">.</span>forward <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>forward_with_debug  <span style="color:#75715e"># The important part   </span>
+</span></span></code></pre></div><p>Later we define:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">forward_with_debug</span>(
+</span></span><span style="display:flex;"><span>    self, 
+</span></span><span style="display:flex;"><span>    hidden_states,
+</span></span><span style="display:flex;"><span>    cross_attention_mask,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">...</span>
+</span></span><span style="display:flex;"><span>    )
+</span></span><span style="display:flex;"><span>  
+</span></span><span style="display:flex;"><span>    outputs <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>original_forward(
+</span></span><span style="display:flex;"><span>        hidden_states,
+</span></span><span style="display:flex;"><span>        attention_mask<span style="color:#f92672">=</span>attention_mask,
+</span></span><span style="display:flex;"><span>        cross_attention_mask<span style="color:#f92672">=</span>cross_attention_mask,
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">...</span>
+</span></span><span style="display:flex;"><span>    )
+</span></span><span style="display:flex;"><span>    step_n <span style="color:#f92672">=</span> len(self<span style="color:#f92672">.</span>debug_data)
+</span></span><span style="display:flex;"><span>    self<span style="color:#f92672">.</span>debug_data<span style="color:#f92672">.</span>append({
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#39;step&#39;</span>: step_n,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#39;layer&#39;</span>: self<span style="color:#f92672">.</span>layer_idx,
+</span></span><span style="display:flex;"><span>      <span style="color:#e6db74">&#39;output&#39;</span>: outputs[<span style="color:#ae81ff">0</span>]<span style="color:#f92672">.</span>detach()<span style="color:#f92672">.</span>cpu()<span style="color:#75715e">#.numpy(),</span>
+</span></span><span style="display:flex;"><span>    })
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># save tensors for further examination</span>
+</span></span><span style="display:flex;"><span>    torch<span style="color:#f92672">.</span>save(outputs, <span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;./torch_debug_step</span><span style="color:#e6db74">{</span>step_n<span style="color:#e6db74">}</span><span style="color:#e6db74">_</span><span style="color:#e6db74">{</span>self<span style="color:#f92672">.</span>layer_idx<span style="color:#e6db74">}</span><span style="color:#e6db74">.pt&#34;</span>)
+</span></span><span style="display:flex;"><span>    self<span style="color:#f92672">.</span>_print_debug_info(self<span style="color:#f92672">.</span>debug_data[<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>])
+</span></span></code></pre></div><p>And the actual patching is done like this:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">for</span> layer_n <span style="color:#f92672">in</span> layers:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> hasattr(model, <span style="color:#e6db74">&#39;transformer&#39;</span>):
+</span></span><span style="display:flex;"><span>        first_block <span style="color:#f92672">=</span> model<span style="color:#f92672">.</span>transformer<span style="color:#f92672">.</span>h[layer_n]
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">elif</span> hasattr(model, <span style="color:#e6db74">&#39;model&#39;</span>):
+</span></span><span style="display:flex;"><span>        first_block <span style="color:#f92672">=</span> model<span style="color:#f92672">.</span>model<span style="color:#f92672">.</span>layers[layer_n]
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">raise</span> <span style="color:#a6e22e">ValueError</span>(<span style="color:#e6db74">&#34;Could not locate transformer blocks in model&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># Add debugging</span>
+</span></span><span style="display:flex;"><span>    debug_wrapper <span style="color:#f92672">=</span> DebugTransformerBlock(first_block, layer_idx <span style="color:#f92672">=</span> layer_n)
+</span></span></code></pre></div><h1 id="running-the-input">Running the input</h1>
+<p>I used the <code>examples/multimodal/run.py</code>  provided by the TensorRT-LLM library for testing with default settings and <code>debug_mode</code> turned on. In my case it didn&rsquo;t work though, because the <code>debug_mode</code> argument did not pass correctly over to the runner itself, so I hardcoded it to <code>True</code> int runner.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>python3 tensorrtllm_backend/tensorrt_llm/examples/multimodal/run.py 
+</span></span><span style="display:flex;"><span>    --visual_engine_dir /tmp/trt_engines/Llama-3.2-11B-Vision-Instruct/vision_encoder/ 
+</span></span><span style="display:flex;"><span>    --visual_engine_name visual_encoder.engine 
+</span></span><span style="display:flex;"><span>    --llm_engine_dir /tmp/trt_engines/Llama-3.2-11B-Vision-Instruct/fp16/ 
+</span></span><span style="display:flex;"><span>    --hf_model_dir /tmp/hf_models/Llama-3.2-11B-Vision-Instruct/ 
+</span></span><span style="display:flex;"><span>    --input_text <span style="color:#e6db74">&#34;Question: What date is shown in the screenshot? Answer: &#34;</span>  
+</span></span><span style="display:flex;"><span>    --image_path pics_test/image20.jpg 
+</span></span><span style="display:flex;"><span>    --temperature <span style="color:#ae81ff">0</span> 
+</span></span><span style="display:flex;"><span>    --max_new_tokens <span style="color:#ae81ff">20</span> 
+</span></span></code></pre></div><p>I assume that you followed all the official instructions and are able to run the built engine with fixed inputs with no programmatical errors (also, remember, that temperature = 0 usually equals to reproducibility and determinate outputs).</p>
+<p>When doing a debug run TRT-LLM kindly supplies a tllm_debug directory packed  with pickled tensors that we&rsquo;ve registered during the previous steps. Running the prompt will produce <code>N*M*2</code> files: <code>N</code> pairs of pickled layers with text representation for each of the <code>M</code> steps. Keep in mind that the dimensionality of the zeroth step will be <code>P*dim</code> where P is the length of prompt in tokens. <code>2</code> - stands for both <code>.txt</code> and <code>.npy</code></p>
+<h1 id="comparing-the-outputs">Comparing the outputs</h1>
+<p>This is the most interesting, or rather, the one and only substantial part of the post. We will now compare the outputs of the traced tensors. I will be using the following code utilizing only <code>+matplotlib+</code> and focusing only on plotting the slices of embeddings (or rather - the hidden states) - token by token. I will also print the correlation coefficient to have a crude numerical measure of the discrepancy.</p>
+<p>Let&rsquo;s start at <strong>layer 0</strong> and <strong>step 0</strong>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>layer_idx <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>m<span style="color:#f92672">=</span>torch<span style="color:#f92672">.</span>load(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;/home/jovyan/torch_debug_step0_</span><span style="color:#e6db74">{</span>layer_idx<span style="color:#e6db74">}</span><span style="color:#e6db74">.pt&#34;</span>, weights_only<span style="color:#f92672">=</span><span style="color:#66d9ef">True</span>)<span style="color:#f92672">.</span>to(torch<span style="color:#f92672">.</span>float16)<span style="color:#f92672">.</span>cpu()<span style="color:#f92672">.</span>numpy()[<span style="color:#ae81ff">0</span>]
+</span></span><span style="display:flex;"><span>t <span style="color:#f92672">=</span> np<span style="color:#f92672">.</span>load(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;tensorrtllm_backend/tllm_debug/PP_0/TP_0/CP_0/transformer.triton_debug_</span><span style="color:#e6db74">{</span>layer_idx<span style="color:#e6db74">}</span><span style="color:#e6db74">-step0.npy&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>input_ids <span style="color:#f92672">=</span> inputs<span style="color:#f92672">.</span>input_ids[<span style="color:#ae81ff">0</span>]
+</span></span><span style="display:flex;"><span>fig, axes <span style="color:#f92672">=</span> plt<span style="color:#f92672">.</span>subplots(<span style="color:#ae81ff">4</span>, <span style="color:#ae81ff">4</span>, figsize<span style="color:#f92672">=</span>(<span style="color:#ae81ff">10</span>, <span style="color:#ae81ff">10</span>))
+</span></span><span style="display:flex;"><span>axes <span style="color:#f92672">=</span> axes<span style="color:#f92672">.</span>flatten()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i, ax <span style="color:#f92672">in</span> enumerate(axes):
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>    ax<span style="color:#f92672">.</span>set_title(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\&#34;</span><span style="color:#e6db74">{</span>tokenizer<span style="color:#f92672">.</span>decode(output_ids[i])<span style="color:#f92672">.</span>strip()<span style="color:#e6db74">}</span><span style="color:#ae81ff">\&#34;</span><span style="color:#e6db74"> corr: </span><span style="color:#e6db74">{</span>np<span style="color:#f92672">.</span>corrcoef([t[i], m[i]])[<span style="color:#ae81ff">0</span>][<span style="color:#ae81ff">1</span>]<span style="color:#f92672">.</span>round(<span style="color:#ae81ff">2</span>)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>    ax<span style="color:#f92672">.</span>plot(m[i], color<span style="color:#f92672">=</span><span style="color:#e6db74">&#39;red&#39;</span>, alpha<span style="color:#f92672">=</span><span style="color:#ae81ff">0.9</span>, lw<span style="color:#f92672">=</span><span style="color:#ae81ff">1.5</span>)
+</span></span><span style="display:flex;"><span>    ax<span style="color:#f92672">.</span>plot(t[i]<span style="color:#f92672">-</span><span style="color:#ae81ff">0.01</span>, alpha<span style="color:#f92672">=</span><span style="color:#ae81ff">0.9</span>)
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>tight_layout()
+</span></span><span style="display:flex;"><span>plt<span style="color:#f92672">.</span>show()
+</span></span></code></pre></div><p>Which gives us this nice output:</p>
+<!-- raw HTML omitted -->
+<p>As you can see both frameworks have the same hidden states for each token. Now let&rsquo;s see what happens after the first cross-attention <strong>layer_idx = 3</strong>:</p>
+<!-- raw HTML omitted -->
+<p>We may now visually observe the differences of hidden states that cannot be attributed to just a rescaling or varying precision (and it is not the case. Both frameworks use <code>+bfloat16+</code>) and may further indicate that something is going wrong here. Notably, it is indeed a case only regarding the control tokens like <code>+user+</code> and <code>+&lt;end header_id&gt;+</code>. Let&rsquo;s explore this further to decide whether it is only a minor numerical fluke or an actual bug. For the last layer output (<strong>layer 38</strong>):</p>
+<!-- raw HTML omitted -->
+<p>As expected, the error propagates further. Also, note the <code>corrcoef</code> that I use to measure discrepancy between hidden states drops to 0.7 which is the possible reason we get differing outputs in the end.</p>
+<h1 id="going-further-but-not-deeper">Going further (but not deeper)</h1>
+<p>It is also interesting to take a look at what is gonna happen from this POV when we&rsquo;ll take different slices further along the generation process. I&rsquo;ll slightly offset the the torch-slice to see that they are absolutely identical at Now, after the cross-attention layer (layer 3), we observe the same kind of &ldquo;<code>non-affine</code>&quot;-like discrepancy.</p>
+<p>Now let&rsquo;s take one more step further to finally see that our erroneous answer is not merely a decoding problem.</p>
+<!-- raw HTML omitted -->
+<h1 id="something-is-wrong">Something is wrong</h1>
+<p>Let&rsquo;s make a plot that shows the delta between layers <code>+N+</code> and <code>+N-1+</code>. And then we&rsquo;ll see something peculiar. Specifically, we plot the change of the hidden state between layers 3 and 2. Layer 3 is the first of the cross-attention blocks, and weirdly, it does not affect the hidden state. It seems that our control tokens are completely <strong>masked out</strong> for all blocks in cross-attention in <code>+TRT-LLM+</code> implementation. Interestingly, this is not the case for the Huggingface implementation.</p>
+<!-- raw HTML omitted -->
+<p><strong>Green</strong> stands for <code>TRT-LLM</code>, <strong>Blue</strong> - for <code>Torch</code>.</p>
+<p>What that means is that there an cross-attention mask incorrectly applied in TRT-LLM</p>
+<p>Hereby, we conclude, that incorrect behavior has something to do with:</p>
+<ol>
+<li>cross-attention</li>
+<li>incorrect masking</li>
+</ol>
+<p>Is it enough to cause incorrect behavior to propagate downstream until the incorrect token is generated? Possibly not, but it&rsquo;s definitely worth further investigation.</p>
+<h1 id="conclusion">Conclusion</h1>
+<p>What did we learn today:</p>
+<ul>
+<li>How to do some TensorRT-LLM instrumentation.</li>
+<li>How can models be diagnosed by implanting them all over with our probing functions?</li>
+<li>How to easily compare two vectors hidden states by plotting them and overlaying over each other.</li>
+<li>How to apply these techniques for a problem &ldquo;in the wild&rdquo; - an obscure malfunction in a new LLM.</li>
+</ul>
+<p>Keep in mind, that all these are merely an addition to reading the code diligently.</p>
+<p>In the next episode, we will check if Nvidia patched its implementation and also if would be able to extract attention masks and make some further observations.</p>
+
+</content>
+<p>
+  
+</p>
+
+  </main>
+  <footer>Made with <a href="https://github.com/janraasch/hugo-bearblog/">Hugo ʕ•ᴥ•ʔ Bear</a>
+</footer>
+
+  
+</body>
+
+</html>

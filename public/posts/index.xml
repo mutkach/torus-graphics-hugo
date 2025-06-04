@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on Torus Blog</title>
+    <link>http://localhost:1313/posts/</link>
+    <description>Recent content in Posts on Torus Blog</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 29 May 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="http://localhost:1313/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Game development experiments and Jam participation</title>
+      <link>http://localhost:1313/posts/2025-05-29-games/</link>
+      <pubDate>Thu, 29 May 2025 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/posts/2025-05-29-games/</guid>
+      <description>&lt;p&gt;My first exposure to &amp;ldquo;real&amp;rdquo; programming was in high school when I was working on a &amp;ldquo;game&amp;rdquo; in C++.&lt;/p&gt;&#xA;&lt;p&gt;In order to write a game, I, of course, needed to write a game engine first&amp;hellip; Thus begins the story that is the oldest story in the book, and also much familiar to too many programmers. Obviously, I never finished my &amp;ldquo;game&amp;rdquo; and It never looked like anything that resembled a game, but there was a working &lt;a href=&#34;https://github.com/mutkach/WinGLEngine&#34;&gt;renderer&lt;/a&gt; with quite a few solid tricks that I was able to steal and incorporate into my engine from different papers, articles and tutorials. Despite young me being unwise in these matters I stand proud for what I was able to accomplish back then.&#xA;It was a deferred rendering engine (it&amp;rsquo;s a fancy technique to render geometry to a texture, then &amp;ldquo;colorize&amp;rdquo; the texture accordingly) with custom shaders, physics simulation and I was on the verge of incorporating the V8 Javascript engine into my engine. Anyways, I learned quite a lot about graphics programming back then: You see, whenever you steal a piece of code and copy paste it into your codebase - it never works out of the box. You &lt;strong&gt;have to&lt;/strong&gt; fix it now even though that code probably came from a reliable source. Once you bashed your head a few dozen times against these compilation errors (or worse - no errors and no visilbe result either) - finally, it works and you feel that some lessons were learned - now you really know how it really works under the hood, or at least understand a part of it.&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Make sheet music from any track [Draft]</title>
+      <link>http://localhost:1313/posts/2025-04-17-music/</link>
+      <pubDate>Thu, 17 Apr 2025 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/posts/2025-04-17-music/</guid>
+      <description>&lt;p&gt;Sometimes you hear an interesting piano lead in a song or a particular &lt;a href=&#34;https://www.youtube.com/watch?v=3MufzuaKfZg&#34;&gt;famous piano solo&lt;/a&gt; and you want to use it for later. Or maybe you would want to study it (music theory or just for kicks). But the problem is that this particular part is nowhere to be found in a sheet music form, or rather you want to do it yourself or some reason.&lt;/p&gt;&#xA;&lt;p&gt;Plan for today.&lt;/p&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;&#xA;&lt;p&gt;Find and download/record that track.&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>LLM surgery for debugging [Part 1]</title>
+      <link>http://localhost:1313/posts/2025-04-02-start/</link>
+      <pubDate>Wed, 02 Apr 2025 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/posts/2025-04-02-start/</guid>
+      <description>&lt;p&gt;&lt;em&gt;Problem: You downloaded and tested a new LLM model from HF. You test it - everything works great for the first couple of examples. Now, you want to deploy it to a production-ready framework (triton, tfserving, torchserve, vllm, trt-llm, etc.), and the end-to-end test result seems to be different or even plain out wrong.&lt;/em&gt;&lt;/p&gt;&#xA;&lt;p&gt;I will show you a specific method that I&amp;rsquo;ve been using for years for debugging neural networks of different kinds. Specifically, it helps a lot while converting models between different formats and runtimes. Let&amp;rsquo;s take, for example, &lt;code&gt;+Llama-3.2-11B-Vision-Instruct+&lt;/code&gt;. We&amp;rsquo;ll pick TensorRT-LLM as our &amp;ldquo;&lt;code&gt;production&lt;/code&gt;&amp;rdquo; backend that is expected to serve the requests, while testing is done using good ol&amp;rsquo; &lt;code&gt;+Huggingface+&lt;/code&gt;. It was all good until I reached a problem that virtually broke the of out business case: for some images, llama would incorrectly parse some of the parts of the document. Neither vLLM nor &lt;code&gt;+Huggingface+&lt;/code&gt; had that problem.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
