@@ -1,5 +1,5 @@
 +++
-title = Simply-typed Lambda Calculus [Part 1]
+title = "Simply-typed Lambda Calculus [Part 1]"
 date = 2025-05-29
 +++
 

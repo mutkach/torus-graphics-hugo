@@ -1,5 +1,5 @@
 +++
-title = "Make sheet music from any track [Draft]"
+title = "Make sheet music from any track"
 date = 2025-04-17
 +++
 
