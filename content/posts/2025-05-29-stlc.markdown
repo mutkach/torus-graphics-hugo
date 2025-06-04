@@ -1,0 +1,63 @@
++++
+title = Simply-typed Lambda Calculus [Part 1]
+date = 2025-05-29
++++
+
+_Added: May 29, 2025 by mutkach_
+
+### Plan and current state:
+1. Follow the Ocaml type checker implementation from _Types and Programming Languages by Benjamin Pierce_ [Done]
+2. Write a Haskell type checker implementation based on the Ocaml implementation from the book [Done]
+3. Write a Rust type checker implementation based on the Haskell implementation [Done]
+4. Write a PEG in `Pest` to parse strings into ASTs. [WIP]
+5. Write a REPL using `rustline` [to be done]
+
+
+
+You can follow the project along on [github](https://github.com/mutkach/types-playground)
+
+For a long time I wanted to get into type theory. One of the classics in this genre is of course the Types and Programming Languages by Benjamin Pierce (also one of the creators of the Program Verification course). To be honest, type theory is something that lies very closely to Logic rather than any other familiar parts of Mathematics. And "studying" Logic is quite tedious. Some of my mathematician friends share that opinion. It's difficult to say what is exactly so tiring when studying logic - it is just "__not quite my tempo__". Something changed in me when I first saw the Ocaml implementation of the type checking algorithm for simple types and trivial terms (no "let" bindings, no operations, but still...). I was looking at tiny piece of code that was clear as a glass and readable as a road sign (forgive me for that little poetic outburst...) What I gathered is at least a little part of the Type theory is just chewing through some very simple ideas. But, mind you, that is literally the beginning - the real type systems will appear afterwards. But still, some simple ideas may hide behind some very verbose and redundant language but become clear in code. That is one of such cases. 
+
+However. Once I got the type checker running - I wanted more. Now I want a sort of a playground where I could try out different type systems and work with them interactively. Maybe one day, dependent typing will become approachable too. Anyways in order to create such a playground, the type checker would be the lesser part. First, I want to have a working parser so that I could type expressions in "mathematical" notation and not as nested ASTs typed down by hand! For that matter we have `Pest` - it is a simple PEG (Parser Expression Generator) that takes as an input a sort of a grammar expression and then proceeds to "generate" a Parser of that grammar for you. There was one thing that I appreciated **a lot** - it was that little interactive WYSIWYG window on its site page where you could literally type in the grammar and see the parsed tree (or lack thereof, too). 
+
+From here I will proceed onwards with PEG parsing and REPL creation.
+
+Here's some code for you:
+```
+Term::TAbstraction(abs) => {
+    let (variable_name, term) = abs.to_owned();
+    let Ok(term_type) = self.check_type(&term) else {
+        return Err("Bad abstraction type!");
+    };
+    let Some(index) = self.get_idx_from_name(&variable_name) else {
+        return Err("No such binding found!");
+    };
+    let Some(variable_type) = self.get_type_from_idx(index) else {
+        return Err("Bad type");
+    };
+    Ok(TType::TFun(Box::new((variable_type, term_type))))
+}
+Term::TApplication(app) => {
+    let (lambda, arg) = *app.to_owned();
+    let Ok(lambda_type) = self.check_type(&lambda) else {
+        return Err("Bad lambda type!");
+    };
+    let Ok(arg_type) = self.check_type(&arg) else {
+        return Err("Bad argument type");
+    };
+    match lambda_type {
+        TType::TFun(fun) => {
+            let (from, to) = *fun;
+            if from == arg_type {
+                Ok(to)
+            } else {
+                Err("Lambda argument mismatch")
+            }
+        }
+        _ => Err("Wrong lambda type"),
+    }
+}
+```
+
+
+

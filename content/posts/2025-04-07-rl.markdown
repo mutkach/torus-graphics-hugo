@@ -1,0 +1,45 @@
++++
+title = "The RL Agent for Survivors-like game [Part 1]"
+date = 2025-04-07
++++
+
+### Rough plan:
+1. Create a Gymnasium RL Environment.
+2. Create  and evaluate a Baseline agent.
+3. Create a heuristic-based agent to compare to.
+4. Test in a real environment (unlikely, but who knows).
+
+You can follow the project along on [github](https://github.com/mutkach/idle-survivors)
+# Problem Definition 
+_Added: April 14, 2025 by mutkach_
+
+Our goal is to create an agent that would play a game of a genre that was described with words like `reverse-bullet-hell` or `bullet-heaven` and even `garliclike`. The most prominent examples of these are [Vampire Survivors](https://store.steampowered.com/app/1794680/Vampire_Survivors/) and [Brotato](https://store.steampowered.com/app/1942280/Brotato/).
+In other words, we want our agent to traverse the playground while dodging enemies, shooting bullets and collecting powerups.
+There is a couple of additional objectives for extra points:
+
+* use JAX (or even MLX - just for laughs) for extra-performance (we may need to optimize for performance of the environment itself, not just the learning algorithm - that is for PyTorch and the likes)
+* I also want to make the agent parametric, meaning that several parameters like aggresiveness and evasiveness should be part of the input space, probably...
+
+
+# Bullet Heaven Gym
+Let's start with creating a simplified Gymnasium Environment (formerly OpenAI Gym, I think) - meaning a class that provides interfaces like `reset()`, `step(action)`, etc.
+We do that first by copying the boilerplate structure from this [example](https://gymnasium.farama.org/introduction/create_custom_env/).
+
+Let's lay out the basics first:
+
+- Action space: Cartestian product [-1;1] x [-1;1] for direction or Discrete [[0,1], [-1,0], [0,-1], [1,0]] - which would stand for directional stick movement and WASD-movement, respectively. Let's keep it open for now.
+
+- Observations: ndarrays for Agent position, enemy positions, their respective health, and powerup positions.
+
+- Reward: this is a complicated part. I'll leave it timestep-based for now (giving a +1 reward for each timestep being alive). I am also considering giving a kill/second as a reward to make it more aggressive and less conservative. Leaving that out as a hyperparameter (argument to the Env itself).
+
+- Rendering: Gymnasium uses pygame, so we'll be doing very simple rendering without fancy effects. 
+
+What is not the part of the Environment: 
+
+- Picking different weapons
+- Rolling modifiers 
+- Game related stuff, etc.
+
+Here's our environment. It will look like this (pretty boring) for a while. Until we figure out how well does our agent would respond to different sprites and whether we are going to use our canvas as feature space at all, we may as well go raw and only use distances as our features, but that would limit the usage of our agent. 
+
