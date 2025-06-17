@@ -1,14 +1,19 @@
 {
    "list": [
       {
-         "name":"minesweeper-rs",
-         "url":"https://mutkach.itch.io/minesweeper",
-         "desc":"Game written in Rust, using Macroquad and compiled into WASM"
+         "name":"Various Type Systems Implementations in Rust",
+         "url":"https://github.com/mutkach/types-playground",
+         "desc":"WIP Implementing type systems from TAPL and Beyond"
       },
       {
          "name":"RL-agent for Survivors Games",
          "url":"https://github.com/mutkach/idle-survivors",
-         "desc":""
+         "desc":"WIP to build an agent for playing bullet-heaven games"
+      },
+      {
+         "name":"minesweeper-rs",
+         "url":"https://mutkach.itch.io/minesweeper",
+         "desc":"Minesweeper written in Rust, using Macroquad and compiled into WASM"
       }
    ]
 }
