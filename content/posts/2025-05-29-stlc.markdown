@@ -22,7 +22,7 @@ However. Once I got the type checker running - I wanted more. Now I want a sort 
 
 From here I will proceed onwards with PEG parsing and REPL creation.
 
-Here's some code for you:
+Here's some a small piece of code that does checking for abstraction and application types for you:
 
 ```rust
 Term::TAbstraction(abs) => {
@@ -60,5 +60,34 @@ Term::TApplication(app) => {
 }
 ```
 
+Here's - not a piece - but the whole type-checker written in Haskell:
+
+```Haskell
+checkType :: Context -> Term -> MyType
+checkType ctx t = case t of
+  TermIf if' then' else' ->
+    let ifType = checkType ctx if' in 
+    let thenType = checkType ctx then' in 
+    let elseType = checkType ctx else' in 
+    case (ifType, thenType, elseType) of
+                  (TBool, a, b) -> if a == b then a else error "Diverging arms of IF!"
+                  _ -> error "Not a boolean"
+  TermFalse -> TBool
+  TermTrue -> TBool
+  TermAbst name term' -> 
+    let index = getIndexFromName ctx name in
+    let variableType = getTypeFromIndex ctx index in
+    let termType = checkType ctx term' in
+    TFun variableType termType
+  TermApp lambda arg ->
+    let argType = checkType ctx arg in 
+    let lambdaType = checkType ctx lambda in 
+    case lambdaType of
+              (TFun from to) -> if argType == from then to else error "Bad argument"
+              _ -> error "Wrong lambda type"
+  TermVar index'-> getTypeFromIndex ctx index'
+```
+
+Looks great. By the way, maybe I should stick to Haskell?
 
 
