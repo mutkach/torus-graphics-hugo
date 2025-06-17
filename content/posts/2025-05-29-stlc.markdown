@@ -9,8 +9,8 @@ _Added: May 29, 2025 by mutkach_
 1. Follow the Ocaml type checker implementation from _Types and Programming Languages by Benjamin Pierce_ [Done]
 2. Write a Haskell type checker implementation based on the Ocaml implementation from the book [Done]
 3. Write a Rust type checker implementation based on the Haskell implementation [Done]
-4. Write a PEG in `Pest` to parse strings into ASTs. [WIP]
-5. Write a REPL using `rustline` [to be done]
+4. Write a PEG in `Pest` to parse strings into ASTs. [Done]
+5. Write a REPL using `rustyline` [to be done]
 
 
 
@@ -23,7 +23,8 @@ However. Once I got the type checker running - I wanted more. Now I want a sort 
 From here I will proceed onwards with PEG parsing and REPL creation.
 
 Here's some code for you:
-```
+
+```rust
 Term::TAbstraction(abs) => {
     let (variable_name, term) = abs.to_owned();
     let Ok(term_type) = self.check_type(&term) else {

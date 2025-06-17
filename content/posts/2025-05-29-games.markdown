@@ -5,20 +5,37 @@ date = 2025-05-29
 
 My first exposure to "real" programming was in high school when I was working on a "game" in C++. 
 
+{{< figure src="games-1/bench.png" alt="Mesh with SSAO"  alt="screen shot" width="800" >}}
 
 In order to write a game, I, of course, needed to write a game engine first... Thus begins the story that is the oldest story in the book, and also much familiar to too many programmers. Obviously, I never finished my "game" and It never looked like anything that resembled a game, but there was a working [renderer](https://github.com/mutkach/WinGLEngine) with quite a few solid tricks that I was able to steal and incorporate into my engine from different papers, articles and tutorials. Despite young me being unwise in these matters I stand proud for what I was able to accomplish back then. 
 It was a deferred rendering engine (it's a fancy technique to render geometry to a texture, then "colorize" the texture accordingly) with custom shaders, physics simulation and I was on the verge of incorporating the V8 Javascript engine into my engine. Anyways, I learned quite a lot about graphics programming back then: You see, whenever you steal a piece of code and copy paste it into your codebase - it never works out of the box. You __have to__ fix it now even though that code probably came from a reliable source. Once you bashed your head a few dozen times against these compilation errors (or worse - no errors and no visilbe result either) - finally, it works and you feel that some lessons were learned - now you really know how it really works under the hood, or at least understand a part of it. 
 
 In the end, no matter how many features I added to my engine - it was never enough. And that was the legendary curse from the oldest story in the book.
 
+{{< figure src="games-1/bench3.jpg" alt="example screenshot"  alt="screen shot" width="800" >}}
+
+{{< figure src="games-1/bench4.jpg" alt="example screenshot"  alt="screen shot" width="800" >}}
+
 
 I remember that aha moment when I was sitting in computer class and I listening to the explanation of the "marching squares" algorithm - ironically, I think teacher actually meant the Bresenham algorithm and I had to look up the actual marching squares algorithm. Then it clicked with me that there must be a marching cubes algorithm too... And there was. Then I should take voxels from a game like Minecraft and apply it to them. Back in the day I thought I was the smart one for thinking about that. _Like, imagine the infiniteness of the Minecraft, with added smoothness of the realsitic terrain, while also retaining its the editing capability. Oh god help the world for I would blow everyone's minds with this one..._ How naive I was!
 
-My first mentor (an actual game developer) in University explained to me - or rather, that was the actual meaning behind his words - that I never actually wanted to make a game in the first place. I just wanted to solve problems and "tinker with things". These were painfully true words. In his class we were supposed to make a game and the highest mark would be given only to a student who would successfully publish their game (or at least reach the approval process). My project was... different. It was something that I would now classify as a ray-tracing demo (_demo_ as in *demoscene*) with some form of photogrammetry-like caching. It was intended to run on Oculus VR (on of the earliest models). My idea was to blow the user's mind with showing them the universe of 3D-fractals (it is surprisingly easy to render these using ray-tracing) and my idea was to render the image once - once each tick for one of the eyes, that is - then use reprojection to cache the texels (or voxels, or pixels or whatever it was) and use these values to render the other eye. It worked somehow (the image would funnily corrupt after a few dozen frames when the cache got corrupted by the approximation and rounding errors, but still) but nobody ever could understand what I did in that project. Or why I were doing this instead of making a game. Of course It didn't run properly when the deadline came. My mentor was sympathetic and still gave me a good mark for that though. I am still quite proud of what was achieved back then. 
+{{< figure src="games-1/bench1.jpg" alt="example screenshot"  alt="screen shot" width="800" >}}
+
+
+My first mentor (an actual game developer) in University explained to me - or rather, that was the actual meaning behind his words - that I never actually wanted to make a game in the first place. I just wanted to solve problems and "tinker with things". These were painfully true words. In his class we were supposed to make a game and the highest mark would be given only to a student who would successfully publish their game (or at least reach the approval process). My project was... different. It was something that I would now classify as a ray-tracing demo (_demo_ as in *demoscene*) with some form of photogrammetry-based caching. It was intended to run on Oculus VR (on of the earliest models). My idea was to blow the user's mind with showing them the universe of 3D-fractals (it is surprisingly easy to render these using ray-tracing) and my idea was to render the image once - once each tick for one of the eyes, that is - then use reprojection to cache the texels (or voxels, or pixels or whatever it was) and use these values to render the other eye. It worked somehow (the image would funnily corrupt after a few dozen frames when the cache got corrupted by the approximation and rounding errors, but still) but nobody ever could understand what I did in that project. Or why I were doing this instead of making a game. Of course It didn't run properly when the deadline came. My mentor was sympathetic and still gave me a good mark for that though. I am still quite proud of what was achieved back then. 
+
+{{< figure src="games-1/fractal1.jpg" alt="example screenshot"  alt="screen shot" width="800" >}}
+
+{{< figure src="games-1/fractal2.png" alt="example screenshot"  alt="screen shot" width="800" >}}
+
+{{< figure src="games-1/fractal3.jpg" alt="example screenshot"  alt="screen shot" width="800" >}}
+
 
 
 # Modern times
 Insipired by my streak of getting things done episodes (like setting up this blog) I figured I could give a shot to try game development again. I picked [Pygame Spring Jam] as something that I could commit to. The theme of the jam was __spatial__. I came up with idea. This time, I decided I will make a Game. And then I proceeded with creating ["perspecto"](https://mutkach.itch.io/perspecto)- it is a "game" by a large stretch. The idea of my game would be to arrange sprites inside a 2D viewport in such a way that their collective position conforms to the rules of perspective. Does it make any sense? I know, other people still have no idea what the hell am I doing. As I figured from the comments and ratings - the game is quite conformant to the theme of the jam but fails miserably at being a game, still. Also, I believe that I had more fun than the average applicant (as judged by their reponse to the question "Did you have fun" - of course I did!). I also managed to learn a bit of `Blender` - specifically the geometry nodes thing. All in all I am proud for doing the thing and publishing my second "game" (by formal criterias at least) on the itch.io. Sick!
+
+{{< figure src="games-1/perspecto.jpg" alt="example screenshot"  alt="screen shot" width="800" >}}
 
 
 # Plans for the future

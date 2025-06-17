@@ -9,7 +9,7 @@ I will show you a specific method that I've been using for years for debugging n
 
 Let's say it was a web page snapshot with a VQA-like question about a specific number located on the page. Two frameworks gave similar answers, notably regarding the answer to the question. HF - does, `+TRT-LLM+` - does not.
 
-![example that cannot be parsed correctly](../images/image20.jpg)
+{{< figure src="post-1/image20.jpg" alt="example screenshot"  alt="screen shot" width="500" >}}
 
 The prompt that was given to it was asking for the correct date of something that happened and was mentioned in the page, and the correct the answer should have been something like
 
@@ -216,14 +216,15 @@ plt.show()
 ```
 Which gives us this nice output:
 
+{{< figure src="post-1/image1.png" alt="example screenshot"  alt="screen shot" width="600" >}}
 
 As you can see both frameworks have the same hidden states for each token. Now let's see what happens after the first cross-attention **layer_idx = 3**:
 
+{{< figure src="post-1/image2.png" alt="example screenshot"  alt="screen shot" width="600" >}}
 
 We may now visually observe the differences of hidden states that cannot be attributed to just a rescaling or varying precision (and it is not the case. Both frameworks use `+bfloat16+`) and may further indicate that something is going wrong here. Notably, it is indeed a case only regarding the control tokens like `+user+` and `+<end header_id>+`. Let's explore this further to decide whether it is only a minor numerical fluke or an actual bug. For the last layer output (**layer 38**):
 
-
-
+{{< figure src="post-1/image3.png" alt="example screenshot"  alt="screen shot" width="600" >}}
 
 As expected, the error propagates further. Also, note the `corrcoef` that I use to measure discrepancy between hidden states drops to 0.7 which is the possible reason we get differing outputs in the end. 
 
@@ -233,12 +234,12 @@ It is also interesting to take a look at what is gonna happen from this POV when
 
 Now let's take one more step further to finally see that our erroneous answer is not merely a decoding problem.
 
+{{< figure src="post-1/image4.png" alt="example screenshot"  alt="screen shot" width="600" >}}
 
 # Something is wrong
 Let's make a plot that shows the delta between layers `+N+` and `+N-1+`. And then we'll see something peculiar. Specifically, we plot the change of the hidden state between layers 3 and 2. Layer 3 is the first of the cross-attention blocks, and weirdly, it does not affect the hidden state. It seems that our control tokens are completely **masked out** for all blocks in cross-attention in `+TRT-LLM+` implementation. Interestingly, this is not the case for the Huggingface implementation.
 
-
-
+{{< figure src="post-1/image5.png" alt="example screenshot"  alt="screen shot" width="600" >}}
 
 **Green** stands for `TRT-LLM`, **Blue** - for `Torch`. 
 

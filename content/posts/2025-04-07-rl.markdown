@@ -43,3 +43,4 @@ What is not the part of the Environment:
 
 Here's our environment. It will look like this (pretty boring) for a while. Until we figure out how well does our agent would respond to different sprites and whether we are going to use our canvas as feature space at all, we may as well go raw and only use distances as our features, but that would limit the usage of our agent. 
 
+{{< figure src="rl-1/rl-image1.gif" alt="example screen"  alt="screen shot" width="500" >}}
